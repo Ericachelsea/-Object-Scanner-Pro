@@ -1,0 +1,1136 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Tugas 1: Object Scanner Pro</title>
+
+  <!-- 1. TensorFlow.js & COCO-SSD CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.17.0/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js"></script>
+
+  <!-- 2. Firebase SDK Compatibility Version -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+  <style>
+    :root {
+      --bg-color: #f1f5f9;
+      --card-bg: #ffffff;
+      --border-color: #cbd5e1;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --primary: #2563eb;
+      --success: #16a34a;
+      --danger: #dc2626;
+      --gray: #64748b;
+      --log-bg: #f8fafc;
+    }
+
+    [data-theme="dark"] {
+      --bg-color: #0f172a;
+      --card-bg: #1e293b;
+      --border-color: #334155;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --log-bg: #0f172a;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      padding: 12px;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      min-height: 100vh;
+      transition: background-color 0.3s, color 0.3s;
+    }
+
+    .app-container {
+      width: 100%;
+      max-width: 480px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    /* Card Header */
+    .header-card {
+      background: var(--card-bg);
+      padding: 16px;
+      border-radius: 16px;
+      border: 1px solid var(--border-color);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+    }
+
+    .title-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    h1 {
+      font-size: 1.15rem;
+      font-weight: 800;
+      color: var(--text-main);
+    }
+
+    .badge {
+      display: inline-block;
+      background-color: #d1fae5;
+      color: #065f46;
+      font-weight: 700;
+      font-size: 0.7rem;
+      padding: 4px 8px;
+      border-radius: 20px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    .badge.demo {
+      background-color: #fef3c7;
+      color: #92400e;
+    }
+
+    .counter-box {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 6px;
+    }
+
+    .counter-box span {
+      color: var(--primary);
+      font-size: 1.1rem;
+    }
+
+    /* Controls Bar & Dropdown */
+    .filter-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    select {
+      flex: 1;
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+      background: var(--card-bg);
+      color: var(--text-main);
+      font-size: 0.75rem;
+      font-weight: 600;
+      outline: none;
+    }
+
+    /* Custom Background Color Picker Section */
+    .bg-color-control {
+      margin-top: 8px;
+      padding: 8px 12px;
+      background: var(--log-bg);
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--text-muted);
+    }
+
+    .color-picker-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    input[type="color"] {
+      -webkit-appearance: none;
+      appearance: none;
+      border: none;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      cursor: pointer;
+      background: none;
+    }
+
+    input[type="color"]::-webkit-color-swatch-wrapper {
+      padding: 0;
+    }
+
+    input[type="color"]::-webkit-color-swatch {
+      border: 2px solid var(--border-color);
+      border-radius: 50%;
+    }
+
+    .preset-swatches {
+      display: flex;
+      gap: 4px;
+    }
+
+    .swatch {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      cursor: pointer;
+      border: 1px solid var(--border-color);
+      transition: transform 0.1s;
+    }
+
+    .swatch:active {
+      transform: scale(0.9);
+    }
+
+    /* Control Panel Kecerahan */
+    .brightness-control {
+      margin-top: 8px;
+      padding: 8px 12px;
+      background: var(--log-bg);
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--text-muted);
+    }
+
+    .brightness-control input[type="range"] {
+      flex: 1;
+      accent-color: var(--primary);
+      cursor: pointer;
+    }
+
+    /* Container Kamera & Custom Color Background */
+    #camera-container {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 4 / 3;
+      border-radius: 16px;
+      overflow: hidden;
+      background-color: #000000;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      border: 1px solid var(--border-color);
+      transition: background-color 0.3s ease;
+    }
+
+    #video {
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: cover;
+      transition: filter 0.1s ease, opacity 0.3s ease;
+    }
+
+    #canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    .fps-badge {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: rgba(15, 23, 42, 0.75);
+      color: #38bdf8;
+      font-size: 0.65rem;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 6px;
+      z-index: 5;
+      backdrop-filter: blur(4px);
+    }
+
+    #overlay-msg {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      color: #ffffff;
+      font-weight: 600;
+      font-size: 0.85rem;
+      padding: 16px;
+      text-align: center;
+      z-index: 10;
+    }
+
+    /* Grid Tombol Utama */
+    .btn-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 6px;
+    }
+
+    button {
+      padding: 10px 2px;
+      font-weight: 700;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 0.7rem;
+      color: #ffffff;
+      transition: transform 0.1s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    button:active {
+      transform: scale(0.95);
+    }
+
+    .btn-gray { background-color: var(--gray); }
+    .btn-red { background-color: var(--danger); }
+    .btn-green { background-color: var(--success); }
+    .btn-blue { background-color: var(--primary); }
+    .btn-purple { background-color: #8b5cf6; }
+
+    button:disabled {
+      background-color: #cbd5e1;
+      cursor: not-allowed;
+    }
+
+    /* Widget Statistik Ringkasan */
+    .stats-card {
+      background: var(--card-bg);
+      padding: 12px 16px;
+      border-radius: 12px;
+      border: 1px solid var(--border-color);
+      font-size: 0.75rem;
+    }
+
+    .stats-title {
+      font-weight: 700;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+
+    .tag-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .stat-tag {
+      background: #e0f2fe;
+      color: #0369a1;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-weight: 600;
+      font-size: 0.7rem;
+    }
+
+    /* Section Log Firestore Real-Time */
+    #data-section {
+      background: var(--card-bg);
+      border-radius: 16px;
+      border: 1px solid var(--border-color);
+      overflow: hidden;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+    }
+
+    #data-header {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border-color);
+      font-weight: 800;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      letter-spacing: 0.5px;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn-sm {
+      font-size: 0.65rem;
+      padding: 4px 8px;
+      border-radius: 6px;
+    }
+
+    .search-box {
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border-color);
+      background: var(--card-bg);
+    }
+
+    .search-input {
+      width: 100%;
+      padding: 6px 10px;
+      border-radius: 6px;
+      border: 1px solid var(--border-color);
+      background: var(--log-bg);
+      color: var(--text-main);
+      font-size: 0.75rem;
+      outline: none;
+    }
+
+    #data-list {
+      max-height: 200px;
+      overflow-y: auto;
+      padding: 8px;
+    }
+
+    .log-item {
+      padding: 10px 12px;
+      background: var(--log-bg);
+      border-radius: 8px;
+      margin-bottom: 6px;
+      border: 1px solid var(--border-color);
+      border-left: 4px solid var(--primary);
+      font-size: 0.8rem;
+      transition: background-color 0.5s ease;
+    }
+
+    .log-item.new-entry {
+      background-color: #dcfce7;
+    }
+
+    .log-item .time {
+      color: var(--text-muted);
+      font-size: 0.7rem;
+      display: block;
+      margin-bottom: 2px;
+    }
+
+    .log-item .items {
+      font-weight: 600;
+      color: var(--text-main);
+      word-break: break-word;
+    }
+
+    .empty-state {
+      text-align: center;
+      color: var(--text-muted);
+      padding: 20px;
+      font-size: 0.8rem;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="app-container">
+    <!-- Card Header Mobile -->
+    <div class="header-card">
+      <div class="title-row">
+        <h1>Object Scanner Pro</h1>
+        <div id="db-status" class="badge">INITIALIZING...</div>
+      </div>
+      <div class="counter-box">
+        <div>Terdeteksi: <span id="object-count">0</span> Objek</div>
+        <button class="btn-gray btn-sm" onclick="toggleDarkMode()">Tema 🌓</button>
+      </div>
+      
+      <!-- Filter Mode Deteksi & Filter Wajah AR -->
+      <div class="filter-row">
+        <select id="mode-select" onchange="changeDetectionMode()">
+          <option value="all">Mode: Multi-Barang & Orang</option>
+          <option value="person">Mode: Khusus Orang Saja</option>
+        </select>
+        <select id="ar-filter-select" onchange="applyCameraFilters()">
+          <option value="none">Filter IG: Tanpa Filter</option>
+          <option value="glasses">🕶️ AR Kacamata Hitam</option>
+          <option value="crown">👑 AR Mahkota Bunga</option>
+          <option value="ears">🐰 AR Telinga Kelinci</option>
+          <option value="mustache">🥸 AR Kumis & Kacamata</option>
+          <option value="vintage">📸 Estetik Vintage</option>
+          <option value="sepia">📻 Retro Sepia</option>
+          <option value="cyber">🌆 Cyberpunk Neon</option>
+          <option value="bw">🖤 Hitam Putih (B&W)</option>
+        </select>
+      </div>
+
+      <!-- Pilih Warna Background Sendiri (Color Picker) -->
+      <div class="bg-color-control">
+        <div class="color-picker-wrapper">
+          <span>🎨 Warna Background:</span>
+          <input type="color" id="bg-color-picker" value="#000000" onchange="updateBgColor(this.value)" />
+        </div>
+        <div class="preset-swatches">
+          <div class="swatch" style="background:#000000;" title="Hitam Standar" onclick="setPresetBg('#000000')"></div>
+          <div class="swatch" style="background:#0f172a;" title="Navy Dark" onclick="setPresetBg('#0f172a')"></div>
+          <div class="swatch" style="background:#166534;" title="Emerald" onclick="setPresetBg('#166534')"></div>
+          <div class="swatch" style="background:#991b1b;" title="Ruby Red" onclick="setPresetBg('#991b1b')"></div>
+          <div class="swatch" style="background:#581c87;" title="Purple Neon" onclick="setPresetBg('#581c87')"></div>
+        </div>
+      </div>
+
+      <!-- Slider Pengatur Kecerahan (Brightness) -->
+      <div class="brightness-control">
+        <span>☀️ Kecerahan:</span>
+        <input type="range" id="brightness-slider" min="50" max="150" value="100" oninput="applyCameraFilters()" />
+        <span id="brightness-val">100%</span>
+      </div>
+    </div>
+
+    <!-- Container Kamera & Frame Overlay -->
+    <div id="camera-container">
+      <div class="fps-badge">FPS: <span id="fps-counter">0</span></div>
+      <video id="video" autoplay playsinline muted></video>
+      <canvas id="canvas"></canvas>
+      <div id="overlay-msg">Memuat Model AI...</div>
+    </div>
+
+    <!-- Tombol Kontrol Navigasi Grid -->
+    <div class="btn-grid">
+      <button class="btn-gray" onclick="startCamera()">Kamera</button>
+      <button class="btn-blue" onclick="switchCamera()">Ganti 🔄</button>
+      <button class="btn-purple" onclick="takeSnapshot()">Foto 📸</button>
+      <button class="btn-gray" onclick="stopCamera()">Mati</button>
+      <button id="btn-ai" class="btn-green" onclick="toggleAI()" disabled>Start AI</button>
+    </div>
+
+    <!-- Card Statistik Ringkasan -->
+    <div class="stats-card">
+      <div class="stats-title">Ringkasan Objek Terdeteksi:</div>
+      <div id="stat-tags" class="tag-container">
+        <span class="stat-tag">Menunggu scanning...</span>
+      </div>
+    </div>
+
+    <!-- UI Log Deteksi Firestore Real-Time -->
+    <div id="data-section">
+      <div id="data-header">
+        <span>LOG DETEKSI REAL-TIME</span>
+        <div class="header-right">
+          <span id="log-count">0 items</span>
+          <button class="btn-green btn-sm" onclick="exportCSV()">Export</button>
+          <button class="btn-red btn-sm" onclick="clearAllLogs()">Reset</button>
+        </div>
+      </div>
+      <div class="search-box">
+        <input type="text" id="search-input" class="search-input" placeholder="Cari di log..." oninput="filterLogs()" />
+      </div>
+      <div id="data-list">
+        <div class="empty-state">Menunggu deteksi objek...</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ==========================================
+    // 1. CONFIG FIREBASE PROYEK
+    // ==========================================
+    const firebaseConfig = {
+      apiKey: "AIzaSyCsw3wxCId3MZXz_ZRA3pjy6lhkAPetrtY",
+      authDomain: "expense-traker-mahasiswa-c267f.firebaseapp.com",
+      projectId: "expense-traker-mahasiswa-c267f",
+      storageBucket: "expense-traker-mahasiswa-c267f.firebasestorage.app",
+      messagingSenderId: "720506857020",
+      appId: "1:720506857020:web:803310158c26bd8ba28539"
+    };
+
+    let db;
+    let collectionRef;
+    let isMockMode = false;
+    let currentLogsData = [];
+
+    class MockFirestore {
+      constructor() {
+        this.data = JSON.parse(localStorage.getItem('mock_inventory_db') || '[]');
+        this.listeners = [];
+      }
+      collection() { return this; }
+      async add(payload) {
+        const doc = {
+          ...payload,
+          id: Date.now().toString(),
+          timestamp: new Date().toISOString()
+        };
+        this.data.unshift(doc);
+        if (this.data.length > 50) this.data.pop();
+        localStorage.setItem('mock_inventory_db', JSON.stringify(this.data));
+        this.notify();
+        return Promise.resolve();
+      }
+      clear() {
+        this.data = [];
+        localStorage.removeItem('mock_inventory_db');
+        this.notify();
+      }
+      notify() {
+        this.listeners.forEach(cb => cb(this.data));
+      }
+      orderBy() { return this; }
+      limit() { return this; }
+      onSnapshot(cb) {
+        this.listeners.push(cb);
+        cb(this.data);
+        return () => {};
+      }
+    }
+
+    function initDatabase() {
+      const statusEl = document.getElementById('db-status');
+
+      try {
+        if (!firebase.apps.length) {
+          firebase.initializeApp(firebaseConfig);
+        }
+        db = firebase.firestore();
+        collectionRef = db.collection('object_detections');
+        isMockMode = false;
+        
+        statusEl.textContent = "FIREBASE ONLINE";
+        statusEl.className = "badge";
+
+        console.log("%cBerhasil terhubung ke Firebase Firestore!", "color: #2563eb; font-weight: bold;");
+      } catch (e) {
+        console.error("Gagal inisialisasi Firebase, beralih ke Mock Mode:", e);
+        setupMockDb(statusEl);
+      }
+    }
+
+    function setupMockDb(el) {
+      db = new MockFirestore();
+      collectionRef = db.collection('object_detections');
+      isMockMode = true;
+      el.textContent = "DEMO MODE (MOCK)";
+      el.className = "badge demo";
+      db.clear();
+      console.log("%cMenggunakan Demo Mode (Mock Database).", "color: #d97706; font-weight: bold;");
+    }
+
+    function clearAllLogs() {
+      if (isMockMode) {
+        db.clear();
+      } else {
+        const dataList = document.getElementById('data-list');
+        dataList.innerHTML = '<div class="empty-state">Belum ada objek terdeteksi</div>';
+        document.getElementById('log-count').textContent = '0 items';
+      }
+    }
+
+    // ==========================================
+    // 2. KONTROL KAMERA, WARNA BACKGROUND & FILTER
+    // ==========================================
+    let model = null;
+    let isCameraOn = false;
+    let isAIDetecting = false;
+    let isProcessing = false;
+    let videoStream = null;
+    let lastSaveTime = 0;
+    let currentFacingMode = 'environment';
+    let activeMode = 'all';
+    let activeARFilter = 'none';
+    let customBgColor = '#000000';
+    const SAVE_THROTTLE_MS = 3000;
+
+    let fpsFrameCount = 0;
+    let lastFpsTime = performance.now();
+    let fpsAnimationId = null;
+
+    const TARGET_CLASSES_ALL = [
+      'mouse', 'keyboard', 'cell phone', 'laptop', 'book', 
+      'scissors', 'bottle', 'cup', 'pen', 'chair', 'person'
+    ];
+
+    function changeDetectionMode() {
+      activeMode = document.getElementById('mode-select').value;
+    }
+
+    function updateBgColor(colorHex) {
+      customBgColor = colorHex || '#000000';
+      const container = document.getElementById('camera-container');
+      container.style.backgroundColor = customBgColor;
+
+      const video = document.getElementById('video');
+      video.style.opacity = (customBgColor.toLowerCase() !== '#000000') ? '0.85' : '1.0';
+    }
+
+    function setPresetBg(colorHex) {
+      document.getElementById('bg-color-picker').value = colorHex;
+      updateBgColor(colorHex);
+    }
+
+    function applyCameraFilters() {
+      activeARFilter = document.getElementById('ar-filter-select').value;
+      const brightnessVal = document.getElementById('brightness-slider').value;
+      document.getElementById('brightness-val').textContent = `${brightnessVal}%`;
+
+      const video = document.getElementById('video');
+      let filterString = `brightness(${brightnessVal}%)`;
+
+      if (activeARFilter === 'vintage') filterString += ' sepia(0.5) contrast(1.2) saturate(1.3)';
+      else if (activeARFilter === 'sepia') filterString += ' sepia(0.8)';
+      else if (activeARFilter === 'cyber') filterString += ' hue-rotate(180deg) saturate(2)';
+      else if (activeARFilter === 'bw') filterString += ' grayscale(1)';
+
+      video.style.filter = filterString;
+    }
+
+    function toggleDarkMode() {
+      const isDark = document.body.getAttribute('data-theme') === 'dark';
+      document.body.setAttribute('data-theme', isDark ? 'light' : 'dark');
+    }
+
+    async function loadModel() {
+      try {
+        await tf.setBackend('webgl').catch(() => tf.setBackend('cpu'));
+        model = await cocoSsd.load({ base: 'lite_mobilenet_v2' });
+        
+        document.getElementById('overlay-msg').style.display = 'none';
+        document.getElementById('btn-ai').disabled = false;
+
+        console.log("%cModel AI COCO-SSD berhasil dimuat!", "color: #2563eb; font-weight: bold;");
+      } catch (err) {
+        console.error("Gagal memuat model COCO-SSD:", err);
+        document.getElementById('overlay-msg').textContent = "Gagal memuat model AI. Periksa koneksi internet.";
+      }
+    }
+
+    function updateFpsLoop() {
+      if (!isCameraOn) return;
+
+      const now = performance.now();
+      fpsFrameCount++;
+
+      if (now - lastFpsTime >= 1000) {
+        document.getElementById('fps-counter').textContent = fpsFrameCount;
+        fpsFrameCount = 0;
+        lastFpsTime = now;
+      }
+
+      fpsAnimationId = requestAnimationFrame(updateFpsLoop);
+    }
+
+    async function startCamera() {
+      try {
+        if (videoStream) stopCamera();
+
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { 
+            facingMode: currentFacingMode,
+            width: { ideal: 640 }, 
+            height: { ideal: 480 } 
+          },
+          audio: false
+        });
+        const video = document.getElementById('video');
+        video.srcObject = stream;
+        videoStream = stream;
+
+        await new Promise(resolve => video.onloadedmetadata = resolve);
+        isCameraOn = true;
+        applyCameraFilters();
+        updateBgColor(customBgColor);
+
+        lastFpsTime = performance.now();
+        fpsFrameCount = 0;
+        updateFpsLoop();
+      } catch (err) {
+        alert("Akses kamera ditolak atau kamera tidak ditemukan.");
+      }
+    }
+
+    function switchCamera() {
+      currentFacingMode = currentFacingMode === 'environment' ? 'user' : 'environment';
+      if (isCameraOn) {
+        startCamera();
+      }
+    }
+
+    function stopCamera() {
+      if (videoStream) {
+        videoStream.getTracks().forEach(track => track.stop());
+        document.getElementById('video').srcObject = null;
+      }
+      isCameraOn = false;
+      if (isAIDetecting) stopAI();
+      if (fpsAnimationId) cancelAnimationFrame(fpsAnimationId);
+      clearCanvas();
+      document.getElementById('fps-counter').textContent = "0";
+
+      // Reset warna background ke tampilan awal saat kamera mati
+      setPresetBg('#000000');
+    }
+
+    function takeSnapshot() {
+      if (!isCameraOn) {
+        alert("Kamera belum dinyalakan!");
+        return;
+      }
+      const video = document.getElementById('video');
+      const canvas = document.getElementById('canvas');
+
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = video.videoWidth;
+      tempCanvas.height = video.videoHeight;
+      const tCtx = tempCanvas.getContext('2d');
+
+      // Terapkan Warna Background Pilihan Pengguna pada Canvas Output Foto
+      tCtx.fillStyle = customBgColor;
+      tCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+
+      const brightnessVal = document.getElementById('brightness-slider').value;
+      let filterString = `brightness(${brightnessVal}%)`;
+
+      if (activeARFilter === 'vintage') filterString += ' sepia(0.5) contrast(1.2) saturate(1.3)';
+      else if (activeARFilter === 'sepia') filterString += ' sepia(0.8)';
+      else if (activeARFilter === 'cyber') filterString += ' hue-rotate(180deg) saturate(2)';
+      else if (activeARFilter === 'bw') filterString += ' grayscale(1)';
+
+      tCtx.filter = filterString;
+      tCtx.globalAlpha = (customBgColor.toLowerCase() !== '#000000') ? 0.85 : 1.0;
+      tCtx.drawImage(video, 0, 0, tempCanvas.width, tempCanvas.height);
+      tCtx.filter = 'none'; 
+      tCtx.globalAlpha = 1.0;
+      tCtx.drawImage(canvas, 0, 0, tempCanvas.width, tempCanvas.height);
+
+      const imageURI = tempCanvas.toDataURL('image/png');
+      const link = document.createElement('a');
+      link.download = `ar_snapshot_${Date.now()}.png`;
+      link.href = imageURI;
+      link.click();
+    }
+
+    function exportCSV() {
+      if (!currentLogsData || currentLogsData.length === 0) {
+        alert("Belum ada data log untuk diexport!");
+        return;
+      }
+
+      let csvContent = "data:text/csv;charset=utf-8,Waktu,Item Terdeteksi,Jumlah\n";
+      currentLogsData.forEach(row => {
+        const timeStr = row.timeStr || "Baru saja";
+        const items = `"${(row.items || '').replace(/"/g, '""')}"`;
+        const count = row.count || 0;
+        csvContent += `${timeStr},${items},${count}\n`;
+      });
+
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement('a');
+      link.setAttribute('href', encodedUri);
+      link.setAttribute('download', `detection_logs_${Date.now()}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    // ==========================================
+    // 3. AR FACE FILTER & DETECTION LOOP
+    // ==========================================
+    function drawARFaceFilter(ctx, x, y, w, h) {
+      if (!ctx || w <= 0 || h <= 0) return;
+
+      if (activeARFilter === 'glasses') {
+        const glassesW = w * 0.55;
+        const glassesH = h * 0.16;
+        const glassesX = x + (w - glassesW) / 2;
+        const glassesY = y + h * 0.22;
+
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(glassesX, glassesY, glassesW, glassesH);
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(glassesX, glassesY, glassesW, glassesH);
+
+        ctx.beginPath();
+        ctx.moveTo(glassesX + glassesW * 0.45, glassesY + glassesH / 2);
+        ctx.lineTo(glassesX + glassesW * 0.55, glassesY + glassesH / 2);
+        ctx.stroke();
+      } else if (activeARFilter === 'crown') {
+        ctx.font = `${Math.max(20, w * 0.35)}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.fillText('👑', x + w / 2, y - 5);
+      } else if (activeARFilter === 'ears') {
+        ctx.font = `${Math.max(20, w * 0.4)}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.fillText('🐰', x + w / 2, y - 5);
+      } else if (activeARFilter === 'mustache') {
+        ctx.font = `${Math.max(20, w * 0.35)}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.fillText('🥸', x + w / 2, y + h * 0.45);
+      }
+    }
+
+    function toggleAI() {
+      if (!isCameraOn) {
+        alert("Silakan tekan 'Kamera' terlebih dahulu!");
+        return;
+      }
+      if (isAIDetecting) stopAI();
+      else startAI();
+    }
+
+    function startAI() {
+      isAIDetecting = true;
+      const btnAI = document.getElementById('btn-ai');
+      btnAI.textContent = "Stop AI";
+      btnAI.className = "btn-red";
+      detectLoop();
+    }
+
+    function stopAI() {
+      isAIDetecting = false;
+      isProcessing = false;
+      const btnAI = document.getElementById('btn-ai');
+      btnAI.textContent = "Start AI";
+      btnAI.className = "btn-green";
+      document.getElementById('object-count').textContent = "0";
+      clearCanvas();
+    }
+
+    function playBeepSound() {
+      try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.type = "sine";
+        osc.frequency.value = 880;
+        gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.1);
+      } catch(e){}
+    }
+
+    async function detectLoop() {
+      if (!isAIDetecting || !isCameraOn) return;
+
+      if (!isProcessing) {
+        isProcessing = true;
+
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+
+        const predictions = await model.detect(video);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        let detectedCount = 0;
+        let detectedObjects = [];
+
+        predictions.forEach(pred => {
+          const [x, y, w, h] = pred.bbox;
+          const confidence = pred.score;
+          
+          let isTarget = false;
+          if (activeMode === 'person') {
+            isTarget = (pred.class === 'person');
+          } else {
+            isTarget = TARGET_CLASSES_ALL.includes(pred.class);
+          }
+
+          if (isTarget && confidence > 0.45) {
+            detectedCount++;
+
+            const boxColor = pred.class === 'person' ? '#16a34a' : '#2563eb';
+
+            ctx.strokeStyle = boxColor;
+            ctx.lineWidth = 3;
+            ctx.strokeRect(x, y, w, h);
+
+            const label = `${pred.class} ${(confidence * 100).toFixed(0)}%`;
+            ctx.fillStyle = boxColor;
+            const textWidth = ctx.measureText(label).width;
+            ctx.fillRect(x, y - 22, textWidth + 10, 22);
+
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 12px sans-serif';
+            ctx.fillText(label, x + 5, y - 6);
+
+            if (pred.class === 'person') {
+              drawARFaceFilter(ctx, x, y, w, h);
+            }
+
+            detectedObjects.push({
+              class: pred.class,
+              confidence: parseFloat((confidence * 100).toFixed(2))
+            });
+          }
+        });
+
+        document.getElementById('object-count').textContent = detectedCount;
+
+        if (detectedCount > 0 && (Date.now() - lastSaveTime > SAVE_THROTTLE_MS)) {
+          saveToDatabase(detectedCount, detectedObjects);
+          playBeepSound();
+          lastSaveTime = Date.now();
+        }
+
+        isProcessing = false;
+      }
+
+      requestAnimationFrame(detectLoop);
+    }
+
+    async function saveToDatabase(count, details) {
+      try {
+        const itemsString = details.map(d => `${d.class} (${d.confidence}%)`).join(', ');
+        const payload = {
+          items: itemsString,
+          count: count,
+          device_id: 'MOBILE-APP',
+          timestamp: isMockMode ? new Date().toISOString() : firebase.firestore.FieldValue.serverTimestamp()
+        };
+        await collectionRef.add(payload);
+      } catch (err) {
+        console.error("Gagal menyimpan ke database:", err);
+      }
+    }
+
+    function updateStatsSummary(docsData) {
+      const tagContainer = document.getElementById('stat-tags');
+      const classCounts = {};
+
+      docsData.forEach(data => {
+        if (data.items) {
+          const itemsArr = data.items.split(', ');
+          itemsArr.forEach(itemStr => {
+            const className = itemStr.split(' ')[0];
+            if (className) {
+              classCounts[className] = (classCounts[className] || 0) + 1;
+            }
+          });
+        }
+      });
+
+      const keys = Object.keys(classCounts);
+      if (keys.length === 0) {
+        tagContainer.innerHTML = '<span class="stat-tag">Menunggu scanning...</span>';
+        return;
+      }
+
+      tagContainer.innerHTML = keys.map(key => 
+        `<span class="stat-tag">${key}: ${classCounts[key]}x</span>`
+      ).join('');
+    }
+
+    function filterLogs() {
+      const searchTerm = document.getElementById('search-input').value.toLowerCase();
+      const logItems = document.querySelectorAll('.log-item');
+
+      logItems.forEach(item => {
+        const text = item.textContent.toLowerCase();
+        if (text.includes(searchTerm)) {
+          item.style.display = 'block';
+        } else {
+          item.style.display = 'none';
+        }
+      });
+    }
+
+    // ==========================================
+    // 4. REAL-TIME LISTENER
+    // ==========================================
+    function listenToDatabase() {
+      const dataList = document.getElementById('data-list');
+
+      let query = collectionRef;
+      if (!isMockMode) {
+        query = collectionRef.orderBy('timestamp', 'desc').limit(20);
+      }
+
+      query.onSnapshot(snapshot => {
+        dataList.innerHTML = '';
+        let count = 0;
+        const docs = isMockMode ? snapshot : snapshot.docs;
+        const docsDataList = [];
+        currentLogsData = [];
+
+        docs.forEach((doc, index) => {
+          count++;
+          const data = isMockMode ? doc : doc.data();
+
+          let timeStr = 'Baru saja';
+          try {
+            if (data.timestamp) {
+              let dateObj;
+              if (typeof data.timestamp === 'string') {
+                dateObj = new Date(data.timestamp);
+              } else if (data.timestamp.toDate) {
+                dateObj = data.timestamp.toDate();
+              } else if (data.timestamp.seconds) {
+                dateObj = new Date(data.timestamp.seconds * 1000);
+              } else {
+                dateObj = new Date(data.timestamp);
+              }
+
+              if (!isNaN(dateObj.getTime())) {
+                timeStr = dateObj.toLocaleTimeString('id-ID');
+              }
+            }
+          } catch (e) {
+            timeStr = 'Baru saja';
+          }
+
+          data.timeStr = timeStr;
+          docsDataList.push(data);
+          currentLogsData.push(data);
+
+          const div = document.createElement('div');
+          div.className = index === 0 ? 'log-item new-entry' : 'log-item';
+          div.innerHTML = `
+            <span class="time">${timeStr}</span>
+            <div class="items">${data.items || `Terdeteksi ${data.count} barang`}</div>
+          `;
+          dataList.appendChild(div);
+
+          if (index === 0) {
+            setTimeout(() => {
+              div.classList.remove('new-entry');
+            }, 1500);
+          }
+        });
+
+        document.getElementById('log-count').textContent = `${count} items`;
+        if (count === 0) {
+          dataList.innerHTML = '<div class="empty-state">Belum ada objek terdeteksi</div>';
+        }
+
+        updateStatsSummary(docsDataList);
+        filterLogs();
+      });
+    }
+
+    function clearCanvas() {
+      const canvas = document.getElementById('canvas');
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+
+    function initApp() {
+      initDatabase();
+      listenToDatabase();
+      loadModel();
+    }
+
+    document.addEventListener('DOMContentLoaded', initApp);
+  </script>
+</body>
+</html>
